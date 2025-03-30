@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { html, css, LitElement, TemplateResult } from 'lit';
-import { property, state } from 'lit/decorators.js';
+import { state } from 'lit/decorators.js';
+import { PitchResultInterface } from './pitchPreview.interfaces';
+import { notesFrequency, notesString } from './freq-constants';
 
 export default class ExampleComponent extends LitElement {
   static styles = css`
@@ -12,12 +14,38 @@ export default class ExampleComponent extends LitElement {
   @state() audioEnabled = false;
   @state() analyser: AnalyserNode;
   @state() audioContext: AudioContext;
-  @state() hertz: number;
-  @state() note: string;
-
-  @property({ type: String }) set props(value: string) {
-    console.log('%c value', 'background: #df03fc; color: #f8fc03', value);
-  }
+  @state() values: { [key: string]: PitchResultInterface } = {
+    none: {
+      hertz: 0,
+      previousHertz: 0,
+      note: '',
+      previousNote: '',
+      smoothingThreshold: 99999,
+      smoothingCountThreshold: 0,
+      smoothingCount: 0,
+    },
+    basic: {
+      hertz: 0,
+      previousHertz: 0,
+      note: '',
+      previousNote: '',
+      smoothingThreshold: 10,
+      smoothingCountThreshold: 5,
+      smoothingCount: 0,
+    },
+    very: {
+      hertz: 0,
+      previousHertz: 0,
+      note: '',
+      previousNote: '',
+      smoothingThreshold: 5,
+      smoothingCountThreshold: 10,
+      smoothingCount: 0,
+    },
+  };
+  @state() valueToDisplay: number;
+  @state() previousValueToDisplay: number;
+  @state() smoothingCountThreshold: number;
 
   protected firstUpdated(): void {
     let source;
@@ -54,52 +82,31 @@ export default class ExampleComponent extends LitElement {
     this.analyser.getFloatTimeDomainData(buffer);
     const autoCorrelateValue = this.autoCorrelate(buffer, this.audioContext.sampleRate);
 
-    this.hertz = Math.round(autoCorrelateValue);
-    this.note = this.noteFromPitch(autoCorrelateValue);
+    this.values.none.hertz = this.values.basic.hertz = this.values.very.hertz = Math.round(
+      autoCorrelateValue
+    );
+    this.values.none.note = this.values.basic.note = this.values.very.note = this.noteFromPitch(
+      Math.round(autoCorrelateValue)
+    );
 
-    // const smoothingValue = document.querySelector('input[name="smoothing"]:checked').value;
-
-    // if (autoCorrelateValue === -1) {
-    //   document.getElementById('note').innerText = 'Too quiet...';
-    //   return;
-    // }
-    // if (smoothingValue === 'none') {
-    //   smoothingThreshold = 99999;
-    //   smoothingCountThreshold = 0;
-    // } else if (smoothingValue === 'basic') {
-    //   smoothingThreshold = 10;
-    //   smoothingCountThreshold = 5;
-    // } else if (smoothingValue === 'very') {
-    //   smoothingThreshold = 5;
-    //   smoothingCountThreshold = 10;
-    // }
-    // const noteIsSimilarEnough = () => {
-    //   // Check threshold for number, or just difference for notes.
-    //   if (typeof valueToDisplay == 'number') {
-    //     return Math.abs(valueToDisplay - previousValueToDisplay) < smoothingThreshold;
-    //   } else {
-    //     return valueToDisplay === previousValueToDisplay;
-    //   }
-    // };
-    // // Check if this value has been within the given range for n iterations
-    // if (noteIsSimilarEnough()) {
-    //   if (smoothingCount < smoothingCountThreshold) {
-    //     smoothingCount++;
-    //     return;
-    //   } else {
-    //     previousValueToDisplay = valueToDisplay;
-    //     smoothingCount = 0;
-    //   }
-    // } else {
-    //   previousValueToDisplay = valueToDisplay;
-    //   smoothingCount = 0;
-    //   return;
-    // }
-    // if (typeof valueToDisplay == 'number') {
-    //   valueToDisplay += ' Hz';
-    // }
-
-    // document.getElementById('note').innerText = valueToDisplay;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    Object.entries(this.values).forEach(([_smooth, values]) => {
+      if (Math.abs(values.hertz - values.previousHertz) < values.smoothingCountThreshold) {
+        if (values.smoothingCount < values.smoothingCountThreshold) {
+          values.smoothingCount++;
+        } else {
+          values.previousHertz = values.hertz;
+          values.smoothingCount = 0;
+        }
+        if (values.note === values.previousNote) {
+          values.previousNote = values.note;
+        }
+      } else {
+        values.previousHertz = values.hertz;
+        values.smoothingCount = 0;
+      }
+    });
+    this.requestUpdate();
   }
 
   private autoCorrelate(buffer: Float32Array, sampleRate: number) {
@@ -185,30 +192,25 @@ export default class ExampleComponent extends LitElement {
     return sampleRate / T0;
   }
 
-  private noteFromPitch(frequency: number): string {
-    const noteStrings = [
-      'Do',
-      'Do#',
-      'Re',
-      'Re#',
-      'Mi',
-      'Fa',
-      'Fa#',
-      'Sol',
-      'Sol#',
-      'La',
-      'La#',
-      'Si',
-    ];
-    const noteNum = 12 * (Math.log(frequency / 440) / Math.log(2));
-    return noteStrings[Math.round(noteNum) + (69 % 12)];
+  private noteFromPitch(hertz: number): string {
+    const closest = notesFrequency.reduce(function(prev, curr) {
+      return Math.abs(curr - hertz) < Math.abs(prev - hertz) ? curr : prev;
+    });
+    return notesString[notesFrequency.indexOf(closest)];
   }
 
   render(): TemplateResult<1> {
     return html`
       <div>
-        <h1>${this.hertz} Hz</h1>
-        <h1>Note: ${this.note}</h1>
+        <h1>NONE</h1>
+        <h2>${this.values.none.hertz} Hz</h2>
+        <h2>Note: ${this.values.none.note}</h2>
+        <h1>BASIC</h1>
+        <h2>${this.values.basic.hertz} Hz</h2>
+        <h2>Note: ${this.values.basic.note}</h2>
+        <h1>VERY</h1>
+        <h2>${this.values.very.hertz} Hz</h2>
+        <h2>Note: ${this.values.very.note}</h2>
       </div>
     `;
   }

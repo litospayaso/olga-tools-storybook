@@ -7,3 +7,13 @@
 export interface PitchPreviewInterface {
   props?: any;
 }
+
+export interface PitchResultInterface {
+  previousHertz: number;
+  hertz: number;
+  note: string;
+  previousNote: string;
+  smoothingThreshold: number;
+  smoothingCountThreshold: number;
+  smoothingCount: number;
+}
