@@ -82,30 +82,42 @@ export default class ExampleComponent extends LitElement {
     this.analyser.getFloatTimeDomainData(buffer);
     const autoCorrelateValue = this.autoCorrelate(buffer, this.audioContext.sampleRate);
 
-    this.values.none.hertz = this.values.basic.hertz = this.values.very.hertz = Math.round(
-      autoCorrelateValue
-    );
-    this.values.none.note = this.values.basic.note = this.values.very.note = this.noteFromPitch(
-      Math.round(autoCorrelateValue)
-    );
+    const hertz = Math.round(autoCorrelateValue);
+    const note = this.noteFromPitch(Math.round(autoCorrelateValue));
+
+    this.values.none.hertz = hertz;
+    // console.log('%c hertz', 'background: #df03fc; color: #f8fc03', hertz);
+    // this.values.none.hertz = this.values.basic.hertz = this.values.very.hertz = Math.round(
+    //   autoCorrelateValue
+    // );
+    this.values.none.note = note;
+    // this.values.none.note = this.values.basic.note = this.values.very.note = this.noteFromPitch(
+    //   Math.round(autoCorrelateValue)
+    // );
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    Object.entries(this.values).forEach(([_smooth, values]) => {
-      if (Math.abs(values.hertz - values.previousHertz) < values.smoothingCountThreshold) {
-        if (values.smoothingCount < values.smoothingCountThreshold) {
-          values.smoothingCount++;
-        } else {
-          values.previousHertz = values.hertz;
-          values.smoothingCount = 0;
-        }
-        if (values.note === values.previousNote) {
-          values.previousNote = values.note;
-        }
-      } else {
-        values.previousHertz = values.hertz;
-        values.smoothingCount = 0;
-      }
-    });
+    // Object.entries(this.values).forEach(([smooth, values]) => {
+    //   if (
+    //     Math.abs(hertz - values.previousHertz) < values.smoothingCountThreshold &&
+    //     smooth !== 'none'
+    //   ) {
+    //     values.hertz = hertz;
+    //     if (values.smoothingCount < values.smoothingCountThreshold) {
+    //       values.smoothingCount++;
+    //     } else {
+    //       values.previousHertz = values.hertz;
+    //       values.smoothingCount = 0;
+    //     }
+    //     if (note === values.previousNote) {
+    //       values.previousNote = values.note;
+    //     } else {
+    //       values.previousNote = note;
+    //     }
+    //   } else {
+    //     values.previousHertz = hertz;
+    //     values.smoothingCount = 0;
+    //   }
+    // });
     this.requestUpdate();
   }
 
